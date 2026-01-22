@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#f4e9e2">
+    <title>Dojo Strike: Pro Edition</title>
+    <style>
+        :root { 
+            --bg: #f4e9e2; 
+            --striker: #2d3436; 
+            --target: #e74c3c; 
+            --text: #2d3436;
+            --stage-bg: rgba(255,255,255,0.3);
+            --border: #2d3436;
+        }
+
+        /* iOS ve tüm platformlar için optimizasyon */
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            touch-action: manipulation; /* iOS için critical */
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed; /* iOS scroll önleme */
+        }
+        
+        body { 
+            background-color: var(--bg); 
+            height: 100vh; 
+            width: 100vw;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            overflow: hidden; 
+            transition: background-color 0.8s ease, color 0.8s ease; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            color: var(--text);
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            position: relative;
+        }
+
+        #hud { 
+            width: 300px; 
+            max-width: 90vw;
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 15px; 
+            font-weight: 900; 
+            font-size: 1.4rem; 
+            z-index: 1;
+        }
+        
+        #stage { 
+            position: relative; 
+            width: 300px; 
+            max-width: 90vw;
+            height: 350px; 
+            max-height: 60vh;
+            background: var(--stage-bg); 
+            border: 5px solid var(--border); 
+            border-radius: 20px; 
+            overflow: hidden; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: border-color 0.8s ease;
+            -webkit-backface-visibility: hidden;
+            -webkit-transform: translateZ(0);
+        }
+
+        #target { 
+            position: absolute; 
+            width: 16px; 
+            height: 100%; 
+            background: var(--target); 
+            left: 50%; 
+            top: 0; 
+            z-index: 2; 
+            transform: translateX(-50%);
+            box-shadow: 0 0 20px var(--target);
+            transition: background-color 0.8s ease, width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            -webkit-transform: translateX(-50%);
+        }
+
+        #striker { 
+            position: absolute; 
+            width: 34px; 
+            height: 80px; 
+            background: var(--striker); 
+            top: 135px; 
+            left: 0; 
+            border-radius: 8px; 
+            z-index: 3; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            will-change: transform;
+            -webkit-transform: translateX(0);
+            transform: translateX(0);
+        }
+
+        /* Striker efekti */
+        #striker::after {
+            content: '';
+            position: absolute;
+            width: 60%;
+            height: 8px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px;
+            top: 10px;
+            left: 20%;
+        }
+
+        #action-pad {
+            width: 300px; 
+            max-width: 90vw;
+            height: 110px;
+            margin-top: 25px;
+            background: var(--striker);
+            border: none;
+            border-radius: 20px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 8px 0 rgba(0,0,0,0.2);
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+            position: relative;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        #action-pad::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        #action-pad:active,
+        #action-pad.touch-active {
+            transform: translateY(6px);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+        }
+
+        #action-pad:active::before,
+        #action-pad.touch-active::before {
+            left: 100%;
+        }
+
+        .overlay {
+            position: absolute; 
+            width: 100%; 
+            height: 100%; 
+            background: var(--bg); 
+            color: var(--text); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 10; 
+            text-align: center; 
+            padding: 20px;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            left: 0;
+            top: 0;
+        }
+
+        #msg { 
+            background: rgba(0,0,0,0.95); 
+            color: white; 
+            display: none; 
+        }
+
+        .btn { 
+            margin-top: 20px; 
+            padding: 15px 40px; 
+            background: var(--target); 
+            border: none; 
+            color: white; 
+            border-radius: 50px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 1.1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: transform 0.2s, opacity 0.2s;
+            position: relative;
+            overflow: hidden;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 5px;
+            height: 5px;
+            background: rgba(255,255,255,0.5);
+            opacity: 0;
+            border-radius: 100%;
+            transform: scale(1, 1) translate(-50%);
+            transform-origin: 50% 50%;
+        }
+
+        .btn:focus:not(:active)::after {
+            animation: ripple 1s ease-out;
+        }
+
+        /* Score animasyonu */
+        .score-pop {
+            animation: scorePop 0.3s ease-out;
+        }
+
+        @keyframes scorePop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* --- EFEKTLER --- */
+        @keyframes shake {
+            0% { transform: translate(0,0) rotate(0); }
+            25% { transform: translate(4px, 4px) rotate(0.5deg); }
+            50% { transform: translate(-4px, -4px) rotate(-0.5deg); }
+            75% { transform: translate(4px, -4px) rotate(0.5deg); }
+            100% { transform: translate(0,0) rotate(0); }
+        }
+        .hit-shake { animation: shake 0.15s ease-out; }
+
+        @keyframes hit-glow {
+            0% { filter: brightness(1); }
+            50% { filter: brightness(2.2); }
+            100% { filter: brightness(1); }
+        }
+        .hit-glow { animation: hit-glow 0.3s ease-out; }
+
+        @keyframes ripple {
+            0% {
+                transform: scale(0, 0);
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(20, 20);
+                opacity: 0;
+            }
+        }
+
+        /* Progress bar */
+        #progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: var(--target);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 0 0 15px 15px;
+        }
+
+        /* iOS notch desteği */
+        @supports (padding: max(0px)) {
+            body {
+                padding-left: max(10px, env(safe-area-inset-left));
+                padding-right: max(10px, env(safe-area-inset-right));
+                padding-top: max(10px, env(safe-area-inset-top));
+                padding-bottom: max(10px, env(safe-area-inset-bottom));
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        <div id="score">0</div>
+        <div id="status">HAZIR</div>
+    </div>
+
+    <div id="stage">
+        <div id="start-screen" class="overlay">
+            <h1 style="font-size: 2.2rem; margin-bottom: 10px;">DOJO STRIKE</h1>
+            <p>Her 20 skorda alan büyür!</p>
+            <button class="btn" id="start-btn">BAŞLA</button>
+        </div>
+
+        <div id="target"></div>
+        <div id="striker"></div>
+        <div id="progress-bar"></div>
+
+        <div id="msg" class="overlay">
+            <h1 style="font-size: 2.5rem; margin-bottom: 10px;">EYVAH!</h1>
+            <p id="final-score" style="font-size: 1.8rem;">Skor: 0</p>
+            <button class="btn" id="reset-btn">TEKRARLA</button>
+        </div>
+    </div>
+
+    <div id="action-pad">
+        VUR !
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+            
+            const striker = document.getElementById('striker');
+            const target = document.getElementById('target');
+            const stage = document.getElementById('stage');
+            const scoreEl = document.getElementById('score');
+            const statusEl = document.getElementById('status');
+            const msgBox = document.getElementById('msg');
+            const startScreen = document.getElementById('start-screen');
+            const actionPad = document.getElementById('action-pad');
+            const progressBar = document.getElementById('progress-bar');
+            const root = document.documentElement;
+            
+            const START_SPEED = 3.0; 
+            const START_WIDTH = 16;
+            
+            let state = { 
+                active: false, 
+                x: 0, 
+                dir: 1, 
+                speed: START_SPEED, 
+                score: 0, 
+                lastUpdate: 0, 
+                targetWidth: START_WIDTH,
+                nextLevel: 20,
+                animationId: null
+            };
+
+            // iOS ve Safari uyumluluğu için gerekli düzeltmeler
+            function preventDefault(e) {
+                if (e.preventDefault) e.preventDefault();
+                return false;
+            }
+
+            // iOS için touch event kısıtlamaları
+            function disableTouchMove() {
+                document.addEventListener('touchmove', preventDefault, { passive: false });
+            }
+
+            function enableTouchMove() {
+                document.removeEventListener('touchmove', preventDefault);
+            }
+
+            function changeTheme() {
+                const hue = Math.floor(Math.random() * 360);
+                root.style.setProperty('--bg', `hsl(${hue}, 40%, 90%)`);
+                root.style.setProperty('--striker', `hsl(${hue}, 80%, 15%)`);
+                root.style.setProperty('--target', `hsl(${hue}, 70%, 50%)`);
+                root.style.setProperty('--border', `hsl(${hue}, 80%, 15%)`);
+                root.style.setProperty('--text', `hsl(${hue}, 80%, 15%)`);
+                
+                // iOS için ek güvenlik
+                document.body.style.backgroundColor = `hsl(${hue}, 40%, 90%)`;
+            }
+
+            function updateProgressBar() {
+                const progress = (state.score % 20) / 20 * 100;
+                progressBar.style.width = `${progress}%`;
+            }
+
+            function loop(timestamp) {
+                if (!state.active) {
+                    cancelAnimationFrame(state.animationId);
+                    return;
+                }
+                
+                if (!state.lastUpdate) state.lastUpdate = timestamp;
+                const delta = Math.min((timestamp - state.lastUpdate) / 16.67, 2); 
+                state.lastUpdate = timestamp;
+
+                state.x += (state.speed * state.dir * delta);
+                
+                if (state.x >= 266) { state.x = 266; state.dir = -1; }
+                if (state.x <= 0) { state.x = 0; state.dir = 1; }
+                
+                striker.style.transform = `translateX(${state.x}px)`;
+                striker.style.webkitTransform = `translateX(${state.x}px)`;
+                state.animationId = requestAnimationFrame(loop);
+            }
+
+            function handleInput(e) {
+                if(e && e.type === 'touchstart') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                
+                if (!state.active) return;
+
+                const strikerCenter = state.x + 17;
+                const diff = Math.abs(strikerCenter - 150);
+                const tolerance = (state.targetWidth / 2) + 16;
+
+                if (diff < tolerance) {
+                    // Başarılı vuruş
+                    state.score++;
+                    state.speed += 0.15;
+                    
+                    // Score animasyonu
+                    scoreEl.textContent = state.score;
+                    scoreEl.classList.remove('score-pop');
+                    void scoreEl.offsetWidth; // Reflow tetikleme
+                    scoreEl.classList.add('score-pop');
+
+                    // Progress bar güncelle
+                    updateProgressBar();
+
+                    if (state.score >= state.nextLevel) {
+                        state.nextLevel += 20;
+                        state.targetWidth += 8;
+                        target.style.width = state.targetWidth + "px";
+                        statusEl.textContent = "ALAN BÜYÜDÜ!";
+                        progressBar.style.width = '0%';
+                    }
+
+                    // Efektler
+                    stage.classList.remove('hit-shake');
+                    void stage.offsetWidth; 
+                    stage.classList.add('hit-shake');
+
+                    target.classList.remove('hit-glow');
+                    void target.offsetWidth;
+                    target.classList.add('hit-glow');
+
+                    // Her 3 vuruşta tema değişimi (20'nin katı değilse)
+                    if (state.score % 3 === 0 && state.score % 20 !== 0) {
+                        changeTheme();
+                        statusEl.textContent = "MÜKEMMEL!";
+                        setTimeout(() => {
+                            if (state.active) statusEl.textContent = "";
+                        }, 500);
+                    }
+                } else {
+                    gameOver();
+                }
+            }
+
+            function gameOver() {
+                state.active = false;
+                if (state.animationId) {
+                    cancelAnimationFrame(state.animationId);
+                    state.animationId = null;
+                }
+                document.getElementById('final-score').textContent = "Skorun: " + state.score;
+                msgBox.style.display = 'flex';
+                statusEl.textContent = "BİTTİ";
+                progressBar.style.width = '0%';
+                enableTouchMove();
+            }
+
+            function startGame() {
+                startScreen.style.display = 'none';
+                state.active = true;
+                state.lastUpdate = 0;
+                statusEl.textContent = "HAYDİ!";
+                disableTouchMove();
+                state.animationId = requestAnimationFrame(loop);
+            }
+
+            function resetGame() {
+                state.active = true;
+                state.score = 0;
+                state.speed = START_SPEED;
+                state.x = 0;
+                state.targetWidth = START_WIDTH;
+                state.nextLevel = 20;
+                state.lastUpdate = 0;
+                target.style.width = START_WIDTH + "px";
+                striker.style.transform = 'translateX(0px)';
+                striker.style.webkitTransform = 'translateX(0px)';
+                scoreEl.textContent = "0";
+                statusEl.textContent = "HAYDİ!";
+                msgBox.style.display = 'none';
+                progressBar.style.width = '0%';
+                disableTouchMove();
+                state.animationId = requestAnimationFrame(loop);
+            }
+
+            // Event Listeners
+            const startBtn = document.getElementById('start-btn');
+            const resetBtn = document.getElementById('reset-btn');
+            
+            // iOS uyumlu event binding
+            function addTouchListener(element, event, handler) {
+                element.addEventListener(event, handler, { passive: false });
+                element.addEventListener(event.toLowerCase().replace('touch', 'mouse'), handler);
+            }
+
+            // Başlatma butonu
+            startBtn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                startGame();
+            }, { passive: false });
+            
+            startBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                startGame();
+            });
+
+            // Reset butonu
+            resetBtn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                resetGame();
+            }, { passive: false });
+            
+            resetBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                resetGame();
+            });
+
+            // Action pad
+            actionPad.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.classList.add('touch-active');
+                handleInput(e);
+                
+                // Touch end için event
+                const endTouch = function() {
+                    this.classList.remove('touch-active');
+                    this.removeEventListener('touchend', endTouch);
+                    this.removeEventListener('touchcancel', endTouch);
+                }.bind(this);
+                
+                this.addEventListener('touchend', endTouch, { passive: false });
+                this.addEventListener('touchcancel', endTouch, { passive: false });
+            }, { passive: false });
+            
+            actionPad.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                handleInput(e);
+            });
+
+            // Klavye desteği (Space)
+            document.addEventListener('keydown', function(e) {
+                if (e.code === 'Space' || e.key === ' ') {
+                    e.preventDefault();
+                    handleInput();
+                }
+            });
+
+            // Sayfa yüklendiğinde
+            window.addEventListener('load', function() {
+                // iOS için viewport düzeltmesi
+                if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+                    document.body.style.height = 'calc(100vh - 1px)';
+                    setTimeout(function() {
+                        document.body.style.height = '100vh';
+                    }, 0);
+                }
+                
+                // İlk tema değişimi
+                changeTheme();
+                
+                // Sayfa görünürlüğü
+                document.addEventListener('visibilitychange', function() {
+                    if (document.hidden && state.active) {
+                        state.active = false;
+                        if (state.animationId) {
+                            cancelAnimationFrame(state.animationId);
+                            state.animationId = null;
+                        }
+                    }
+                });
+            });
+
+            // iOS için orientation değişikliği
+            window.addEventListener('orientationchange', function() {
+                setTimeout(function() {
+                    if (state.active) {
+                        striker.style.transform = `translateX(${state.x}px)`;
+                        striker.style.webkitTransform = `translateX(${state.x}px)`;
+                    }
+                }, 300);
+            });
+
+        })();
+    </script>
+</body>
+</html>
